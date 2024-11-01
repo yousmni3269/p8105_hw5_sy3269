@@ -1,0 +1,52 @@
+---
+title: "p8105_hw5_sy3269"
+author: "Soomin You"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+```
+
+## Problem 1
+
+For n people in a room, we will check for any duplicate birthdays. Some of the assumptions we make are as follows: 
+
+1) there are at least two people share the same birthday 
+2) there are no leap years 
+3) birthdays are uniformly distributed over the year 
+
+
+```{r}
+bday_sim = function(n) {
+
+  bdays = sample(1:365, size = n, replace = TRUE)
+  
+  duplicate = length(unique(bdays)) < n
+
+  return(duplicate)
+  
+}
+```
+
+
+```{r}
+sim_res = 
+  expand_grid(
+    n = 2:50,
+    iter = 1:10000
+  ) |> 
+  mutate(res = map_lgl(n, bday_sim)) |> 
+  group_by(n) |> 
+  summarize(prob = mean(res))
+
+sim_res |> 
+  ggplot(aes(x = n, y = prob )) + 
+  geom_line()
+```
+
+If the simulation is ran 10,000 times, we get a 
+
+
+Next, run this function 10000 times for each group size between 2 and 50. For each group size, compute the probability that at least two people in the group will share a birthday by averaging across the 10000 simulation runs. Make a plot showing the probability as a function of group size, and comment on your results.
+
