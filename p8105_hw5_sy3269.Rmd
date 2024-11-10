@@ -30,6 +30,8 @@ bday_sim = function(n) {
 ```
 
 
+If the simulation is ran 10,000 times for each group size between 2 and 50, we get the following function. 
+
 ```{r}
 sim_res = 
   expand_grid(
@@ -39,14 +41,199 @@ sim_res =
   mutate(res = map_lgl(n, bday_sim)) |> 
   group_by(n) |> 
   summarize(prob = mean(res))
+```
 
+
+The probability that at least two people in the group share a birthday is averaged across the 10000 simulation runs and the probability as a function of group size was plotted. If we have about 23 people, there is a 0.5 probability of at least two people sharing the same birthday. 
+
+```{r}
 sim_res |> 
   ggplot(aes(x = n, y = prob )) + 
   geom_line()
 ```
 
-If the simulation is ran 10,000 times, we get a 
 
 
-Next, run this function 10000 times for each group size between 2 and 50. For each group size, compute the probability that at least two people in the group will share a birthday by averaging across the 10000 simulation runs. Make a plot showing the probability as a function of group size, and comment on your results.
+
+## Problem 2
+
+Setting n = 30, ($\sigma$) = 5, a normal distribution function is generated. Then, 5000 datasets where ($\mu$) = 0 were created using iteration. 
+
+```{r}
+sim_mean_sd = function(true_mu) {
+  
+  design = rnorm(n = 30, mean = true_mu, sd = 5)
+  
+  t_test_result = t.test(design, mu = true_mu, conf.level = 0.95)
+  
+  t_test_result |>
+  broom::tidy() |>
+  select(estimate, p.value)
+}
+
+sim_mean_sd(0)
+
+sim_data = 
+  expand_grid(
+    mu = 0,
+    iter = 1:5000
+  ) |>
+  mutate(result = map(mu, sim_mean_sd)) |>
+  unnest(result) 
+```
+
+
+The same iteration using the same function was performed for ($\mu$) = {1, 2, 3, 4, 5, 6} then a plot showing the proportion of times the null was rejected on the y axis and the true value of ($\mu$) on the x axis was made. 
+
+```{r}
+sim_result = 
+  expand_grid(
+    mu = c(0:6),
+    iter = 1:5000
+  ) |>
+  mutate(result = map(mu, sim_mean_sd)) |>
+  unnest(result) 
+  
+sim_result |>
+  group_by(mu) |>
+  summarize(prop = mean(p.value < 0.05)) |>
+  ggplot(aes(x = mu, y = prop)) +
+  geom_point()
+
+
+
+
+
+
+
+
+  mutate(prop = ifelse(conclusion == "reject", iter/5000, 0)) |>
+  filter(prop != 0) |>
+  ggplot(aes(x = mu, y = prop)) +
+  geom_point()
+
+
+  
+```
+
+Describe the association between effect size and power.
+
+
+```{r}
+sim_result |>
+  filter(conclusion == "reject the null") |>
+  group_by(mu) |> 
+  ggplot(aes(x = mu, y = estimate)) +
+    geom_point()
+
+```
+
+
+Make a plot showing the average estimate of 𝜇̂ on the y axis and the true value of 𝜇 on the x axis. Make a second plot (or overlay on the first) the average estimate of 𝜇̂ only in samples for which the null was rejected on the y axis and the true value of 𝜇 on the x axis. Is the sample average of 𝜇̂ across tests for which the null is rejected approximately equal to the true value of 𝜇? Why or why not?
+
+
+
+
+
+## Problem 3
+
+The *Washington Post* has gathered data on homicides in 50 large U.S. cities. The raw data summarizes 52,179 homicide cases and there was a case with incorrect information. A case that occurred in Tulsa, with uid starting with `Tul` had state information classified as `AL` instead of `OK`. Since Tulsa is located in Oklahoma, the incorrect information was updated as shown below. 
+
+Then, a new column with `city_state` information was added to the dataset. 
+
+```{r}
+homicide_data = read_csv("./homicide-data.csv") |>
+  janitor::clean_names() |>
+  mutate(state = ifelse(city == "Tulsa" & state == "AL", "OK", state),
+         city_state = str_c(city, state, sep = ", "))
+
+case_data = 
+  homicide_data |>
+  group_by(city_state) |>
+  summarize(
+    total_cases = n(), 
+    unsolved_cases = sum(disposition != "Closed by arrest")
+  ) 
+```
+
+
+For the city of Baltimore, MD, `prop.test` was performed on the unsolved cases out of the total homicide cases. The estimate and confidence interval data was extracted from the `prop.test` results. 
+
+```{r}
+x = case_data |>
+  filter(city_state == "Baltimore, MD") |>
+  pull(unsolved_cases) 
+  
+n = case_data |>
+  filter(city_state == "Baltimore, MD") |>
+  pull(total_cases)
+  
+baltimore_prop = 
+  prop.test(x, n) |>
+  broom::tidy() |>
+  select(estimate, conf.low:conf.high)
+```
+
+
+The above was made into a function. 
+
+```{r}
+city_state_prop = function(name) {
+  
+  x = case_data |>
+    filter(city_state == name) |>
+    pull(unsolved_cases) 
+  
+  n = case_data |>
+    filter(city_state == name) |>
+    pull(total_cases)
+  
+  prop.test(x, n) |>
+    broom::tidy() |>
+    select(estimate, conf.low:conf.high)
+}
+
+city_state_prop("Baltimore, MD")
+
+```
+
+
+To extract the proportion and confidence interval for each city, the following loop was done. 
+
+```{r}
+unique_city_state = 
+  case_data |>
+  distinct(city_state) |>
+  pull(city_state)
+
+
+city_state_sim = 
+  tibble(
+    unique_name = unique_city_state
+  ) |>
+  mutate(data = map(unique_name, city_state_prop)) |>
+  unnest(data) |>
+  janitor::clean_names() 
+```
+
+
+Then, a plot showing the estimates and CIs for each city was made. 
+
+```{r}
+city_state_sim |>
+  mutate(unique_name = fct_reorder(unique_name, estimate)) |>
+  ggplot(aes(x = unique_name, y = estimate)) + 
+  geom_point() + 
+  geom_errorbar(aes(ymin = conf_low, ymax = conf_high)) +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs(
+    x = "City, State", 
+    y = "Estimate proportion and CI", 
+    title = "Unsolved Homicides in the US Cities", 
+    caption = "Data on homicides in 50 large US cities gathered by the Washington Post was used."
+  )
+```
+
+
 
