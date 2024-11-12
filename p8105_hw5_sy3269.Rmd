@@ -128,9 +128,9 @@ sim_result |>
 ```
 
 
-The sample average estimate of $\mu$ across tests for which the null is rejected is not approximately equal to the true value of $\mu$ and this is because of selection bias and conditional inference. 
+The sample average estimate of $\mu$ across tests for which the null is rejected is not approximately equal to the true value of $\mu$ and this is because of selection bias. Since only the test results of which the null is rejected was plotted, selection bias may have affected. 
 
-However, from $\mu$ equal to or greater than 3, the true $\mu$ and the estimate mu became approximately equal. There is a greater variability when the $\mu$ is smaller. 
+However, from $\mu$ equal to or greater than 3, the true $\mu$ and the estimate mu became approximately equal. It can be inferred that there is a greater variability when the $\mu$ is smaller. 
 
 
 
