@@ -1,7 +1,7 @@
 ---
 title: "p8105_hw5_sy3269"
 author: "Soomin You"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -57,33 +57,35 @@ sim_res |>
 
 ## Problem 2
 
-Setting n = 30, ($\sigma$) = 5, a normal distribution function is generated. Then, 5000 datasets where ($\mu$) = 0 were created using iteration. 
+Setting n = 30, $\sigma$ = 5, a normal distribution function is generated. Then, `sim_data` with 5000 datasets as where $\mu$ = 0 were created using iteration. 
 
 ```{r}
-sim_mean_sd = function(true_mu) {
+fcn_mean_sd = function(true_mu) {
   
-  design = rnorm(n = 30, mean = true_mu, sd = 5)
+  design = 
+    tibble(
+      x = rnorm(n = 30, mean = true_mu, sd = 5)
+    )
   
-  t_test_result = t.test(design, mu = true_mu, conf.level = 0.95)
+  t_test_result = t.test(design, conf.level = 0.95) |>
+    broom::tidy() |>
+    select(estimate, p.value)
   
-  t_test_result |>
-  broom::tidy() |>
-  select(estimate, p.value)
+  return(t_test_result)
 }
 
-sim_mean_sd(0)
 
 sim_data = 
   expand_grid(
     mu = 0,
     iter = 1:5000
   ) |>
-  mutate(result = map(mu, sim_mean_sd)) |>
+  mutate(result = map(mu, fcn_mean_sd)) |>
   unnest(result) 
 ```
 
 
-The same iteration using the same function was performed for ($\mu$) = {1, 2, 3, 4, 5, 6} then a plot showing the proportion of times the null was rejected on the y axis and the true value of ($\mu$) on the x axis was made. 
+The same iteration using the same function was performed for $\mu$ = {1, 2, 3, 4, 5, 6} and the data was named as `sim_result.` Then, a plot showing the proportion of times where the null was rejected versus the true value of $\mu$ was made. 
 
 ```{r}
 sim_result = 
@@ -91,46 +93,44 @@ sim_result =
     mu = c(0:6),
     iter = 1:5000
   ) |>
-  mutate(result = map(mu, sim_mean_sd)) |>
+  mutate(result = map(mu, fcn_mean_sd)) |>
   unnest(result) 
   
+
 sim_result |>
   group_by(mu) |>
   summarize(prop = mean(p.value < 0.05)) |>
   ggplot(aes(x = mu, y = prop)) +
-  geom_point()
-
-
-
-
-
-
-
-
-  mutate(prop = ifelse(conclusion == "reject", iter/5000, 0)) |>
-  filter(prop != 0) |>
-  ggplot(aes(x = mu, y = prop)) +
-  geom_point()
-
-
-  
+  geom_point() +
+  labs(
+    x = "true mu", 
+    y = "Power"
+  )
 ```
 
-Describe the association between effect size and power.
+According to the graph, there is a positive association between the effect size and power. The larger the effect size is, the greater the power is. 
+
+
+Then, a plot showing the average estimate of $\mu$ on the y axis and teh true value of $\mu$ on the x axis was made. Only the estimates of $\mu$ for which the null was rejected were graphed. 
 
 
 ```{r}
 sim_result |>
-  filter(conclusion == "reject the null") |>
+  filter(p.value < 0.05) |>
   group_by(mu) |> 
-  ggplot(aes(x = mu, y = estimate)) +
-    geom_point()
-
+  summarize(avg_mu = mean(estimate)) |>
+  ggplot(aes(x = mu, y = avg_mu)) +
+  geom_point() +
+  labs(
+    x = "true mu", 
+    y = "average estimate of mu"
+  )
 ```
 
 
-Make a plot showing the average estimate of 𝜇̂ on the y axis and the true value of 𝜇 on the x axis. Make a second plot (or overlay on the first) the average estimate of 𝜇̂ only in samples for which the null was rejected on the y axis and the true value of 𝜇 on the x axis. Is the sample average of 𝜇̂ across tests for which the null is rejected approximately equal to the true value of 𝜇? Why or why not?
+The sample average estimate of $\mu$ across tests for which the null is rejected is not approximately equal to the true value of $\mu$ and this is because of selection bias and conditional inference. 
 
+However, from $\mu$ equal to or greater than 3, the true $\mu$ and the estimate mu became approximately equal. There is a greater variability when the $\mu$ is smaller. 
 
 
 
@@ -193,6 +193,7 @@ city_state_prop = function(name) {
     select(estimate, conf.low:conf.high)
 }
 
+
 city_state_prop("Baltimore, MD")
 
 ```
@@ -213,7 +214,7 @@ city_state_sim =
   ) |>
   mutate(data = map(unique_name, city_state_prop)) |>
   unnest(data) |>
-  janitor::clean_names() 
+  janitor::clean_names()
 ```
 
 
